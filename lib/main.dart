@@ -116,18 +116,16 @@ class _MapWidgetState extends State<MapWidget> {
         var element = gps[i];
         markers.add(Marker(
             point: element,
-            height: 140,
-            width: 140,
-            child: Column(
+            child: Stack(
               children: [
-                Text(
-                  i.toString(),
-                  style: const TextStyle(fontSize: 13, backgroundColor: Colors.white),
-                ),
                 const Icon(
                   Icons.location_on,
                   color: Colors.red,
                   size: 30,
+                ),
+                Text(
+                  i.toString(),
+                  style: TextStyle(color: Colors.red, backgroundColor: Colors.white),
                 ),
               ],
             )));
@@ -153,7 +151,7 @@ class _MapWidgetState extends State<MapWidget> {
                   child: const Icon(
                     Icons.location_on,
                     color: Colors.blue,
-                    size: 50,
+                    size: 30,
                   )));
               fromMyLoc.add(Polyline(points: [gps[0], myLocation!], strokeWidth: 10, color: Colors.blue));
             });
@@ -182,13 +180,13 @@ class _MapWidgetState extends State<MapWidget> {
           TileLayer(
             urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
           ),
-          MarkerLayer(
-            markers: markers,
-          ),
           PolylineLayer(polylines: polylines),
           PolylineLayer(
             polylines: fromMyLoc,
             minimumHitbox: double.infinity,
+          ),
+          MarkerLayer(
+            markers: markers,
           ),
         ],
       ),
