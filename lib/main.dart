@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   await getGps();
@@ -90,50 +92,106 @@ Future<void> getGps() async {
   // return gpsCoordinates;
 }
 
-class MapWidget extends StatelessWidget {
+class MapWidget extends StatefulWidget {
   MapWidget({super.key});
+
+  @override
+  State<MapWidget> createState() => _MapWidgetState();
+}
+
+class _MapWidgetState extends State<MapWidget> {
+  LatLng? myLocation;
   List<Marker> markers = [];
+
+  //なぜかわけないと片方描画されん
   List<Polyline> polylines = [
     Polyline(points: [gps[15], gps[14], gps[20], gps[0], gps[26], gps[25]], strokeWidth: 7, color: Colors.black)
   ];
+  List<Polyline> fromMyLoc = [];
 
   @override
   Widget build(BuildContext context) {
-    for (int i = 0; i < gps.length; i++) {
-      var element = gps[i];
-      markers.add(Marker(
-          point: element,
-          height: 140,
-          width: 140,
-          child: Column(
-            children: [
-              Text(
-                i.toString(),
-                style: const TextStyle(fontSize: 13),
-              ),
-              const Icon(
-                Icons.location_on,
-                color: Colors.red,
-                size: 30,
-              ),
-            ],
-          )));
+    if (markers.isEmpty) {
+      for (int i = 0; i < gps.length; i++) {
+        var element = gps[i];
+        markers.add(Marker(
+            point: element,
+            height: 140,
+            width: 140,
+            child: Column(
+              children: [
+                Text(
+                  i.toString(),
+                  style: const TextStyle(fontSize: 13, backgroundColor: Colors.white),
+                ),
+                const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 30,
+                ),
+              ],
+            )));
+      }
     }
-    return FlutterMap(
-      options: const MapOptions(
-        // 名古屋駅の緯度経度です。
-        initialCenter: LatLng(41.79544722222222, 140.75535555555555),
-        initialZoom: 16.5,
+    polylines.forEach((ele) => print(ele.strokeWidth));
+    return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          Map<Permission, PermissionStatus> statuses = await [
+            Permission.location,
+            Permission.storage,
+          ].request();
+          if (await Permission.location.request().isGranted) {
+            // Either the permission was already granted before or the user just granted it.
+            Position current = await Geolocator.getCurrentPosition();
+            print("current: $current");
+            setState(() {
+              myLocation = LatLng(current.latitude, current.longitude);
+              print("mylocation" + myLocation!.toString());
+              markers.add(Marker(
+                  point: myLocation!,
+                  child: const Icon(
+                    Icons.location_on,
+                    color: Colors.blue,
+                    size: 50,
+                  )));
+              fromMyLoc.add(Polyline(points: [gps[0], myLocation!], strokeWidth: 10, color: Colors.blue));
+            });
+          }
+
+// You can request multiple permissions at once.
+
+          print(statuses[Permission.location]);
+          if (await Permission.location.status == PermissionStatus.denied) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('位置情報の権限が必要です'),
+              ),
+            );
+          }
+        },
+        child: const Icon(Icons.location_on),
       ),
-      children: [
-        TileLayer(
-          urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      body: FlutterMap(
+        options: const MapOptions(
+          // 名古屋駅の緯度経度です。
+          initialCenter: LatLng(41.79544722222222, 140.75535555555555),
+          initialZoom: 16.5,
         ),
-        MarkerLayer(
-          markers: markers,
-        ),
-        PolylineLayer(polylines: polylines)
-      ],
+        children: [
+          TileLayer(
+            urlTemplate: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          ),
+          MarkerLayer(
+            markers: markers,
+          ),
+          PolylineLayer(polylines: polylines),
+          PolylineLayer(
+            polylines: fromMyLoc,
+            minimumHitbox: double.infinity,
+          ),
+        ],
+      ),
     );
   }
 }
